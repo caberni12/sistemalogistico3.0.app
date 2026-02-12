@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Panel Administrativo</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+/* ================= BASE ================= */
+body{
+  font-family:'Segoe UI',Arial;
+  background:#f4f7fb;
+  margin:0;
+}
+
+.container{
+  padding:40px;
+  max-width:1300px;
+  margin:auto;
+}
+
+.card{
+  background:#fff;
+  border-radius:18px;
+  padding:30px;
+  box-shadow:0 15px 35px rgba(0,0,0,.08);
+}
+
+/* ================= CONTROLES ================= */
+.controls{
+  display:flex;
+  gap:10px;
+  margin-bottom:20px;
+  flex-wrap:wrap;
+}
+
+.controls input{
+  padding:10px;
+  border-radius:8px;
+  border:1px solid #ddd;
+  min-width:260px;
+}
+
+button{
+  padding:10px 16px;
+  border:none;
+  border-radius:10px;
+  cursor:pointer;
+  font-size:14px;
+}
+
+.btn-load{ background:#3b82f6; color:#fff; }
+.btn-success{ background:#10b981; color:#fff; }
+.btn-edit{ background:#6366f1; color:#fff; padding:6px 12px; }
+.btn-danger{ background:#ef4444; color:#fff; padding:6px 12px; }
+
+/* ================= LOADER ================= */
+.loader{
+  width:16px;
+  height:16px;
+  border:3px solid rgba(255,255,255,.5);
+  border-top:3px solid #fff;
+  border-radius:50%;
+  animation:spin .7s linear infinite;
+}
+@keyframes spin{ to{ transform:rotate(360deg); } }
+
+.btn-loading{
+  pointer-events:none;
+  opacity:.8;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+}
+
+/* ================= TABLA ESCRITORIO ================= */
+table{ width:100%; border-collapse:collapse; }
+th{ background:#f1f5f9; padding:14px; }
+td{
+  padding:12px;
+  border-bottom:1px solid #eee;
+  text-align:center;
+  font-size:13px;
+}
+
+/* ================= MODALES ================= */
+.modal{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.5);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:1000;
+}
+
+.modal-content{
+  background:#fff;
+  width:520px;
+  padding:30px;
+  border-radius:18px;
+}
+
+input,select{
+  width:100%;
+  padding:10px;
+  margin-top:10px;
+  border-radius:8px;
+  border:1px solid #ddd;
+}
+
+.permissions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  margin-top:15px;
+}
+
+.footer-btns{
+  margin-top:20px;
+  text-align:right;
+  display:flex;
+  gap:10px;
+  justify-content:flex-end;
+}
+
+/* ================= MOBILE ================= */
+.mobile-list{ display:none; }
+
+@media (max-width:768px){
+
+  /* CONTROLES */
+  .controls{
+    flex-direction:column;
+    align-items:stretch;
+  }
+
+  .controls input{
+    width:100%;
+    max-width:100%;
+    min-width:0;
+    box-sizing:border-box;
+  }
+
+  /* TABLA */
+  table, thead{ display:none; }
+
+  /* TARJETAS */
+  .mobile-list{
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+  }
+
+  .mobile-card{
+    background:#fff;
+    border-radius:16px;
+    padding:18px;
+    box-shadow:0 10px 25px rgba(0,0,0,.08);
+    border:1px solid #e5e7eb;
+  }
+
+  .mobile-card h4{ margin:0 0 6px; }
+  .mobile-card p{ margin:4px 0; font-size:13px; }
+
+  .mobile-actions{
+    display:flex;
+    gap:8px;
+    margin-top:10px;
+  }
+
+  .mobile-actions button{ flex:1; }
+
+  /* ===== MODAL MOBILE FIX ===== */
+  .modal{
+    align-items:flex-start;
+    padding:20px 10px;
+  }
+
+  .modal-content{
+    width:100%;
+    max-width:100%;
+    padding:20px;
+    border-radius:14px;
+  }
+
+  .footer-btns{
+    margin-top:12px;
+    padding-top:10px;
+    flex-direction:column;
+  }
+
+  .footer-btns button{
+    width:100%;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+<div class="card">
+
+<div class="controls">
+  <button id="btnLoad" class="btn-load" onclick="cargarUsuarios()">Cargar usuarios</button>
+  <input id="busqueda" placeholder="Buscar usuario, nombre o rol" oninput="filtrar()">
+  <button class="btn-success" onclick="abrirCrear()">+ Crear Usuario</button>
+</div>
+
+<table>
+<thead>
+<tr>
+  <th>Usuario</th>
+  <th>Contraseña</th>
+  <th>Nombre</th>
+  <th>Rol</th>
+  <th>Activo</th>
+  <th>Acciones</th>
+</tr>
+</thead>
+<tbody id="tablaUsuarios">
+<tr><td colspan="6">Presione “Cargar usuarios”</td></tr>
+</tbody>
+</table>
+
+<div id="mobileList" class="mobile-list"></div>
+
+</div>
+</div>
+
+<!-- MODAL -->
+<div class="modal" id="modalUsuario">
+<div class="modal-content">
+<h3 id="tituloUsuario"></h3>
+
+<input id="u_user" placeholder="Usuario">
+<input id="u_pass" placeholder="Contraseña">
+<input id="u_nombre" placeholder="Nombre">
+
+<select id="u_rol">
+  <option>ADMIN</option>
+  <option>OPERADOR</option>
+  <option>SUPERVISOR</option>
+</select>
+
+<select id="u_activo">
+  <option value="SI">ACTIVO</option>
+  <option value="NO">INACTIVO</option>
+</select>
+
+<h4>Permisos</h4>
+<div class="permissions">
+  <label><input type="checkbox" value="inventario"> Inventario</label>
+  <label><input type="checkbox" value="etiquetas"> Etiquetas</label>
+  <label><input type="checkbox" value="codigos"> Códigos</label>
+  <label><input type="checkbox" value="dashboard"> Dashboard</label>
+  <label><input type="checkbox" value="usuarios"> Usuarios</label>
+</div>
+
+<div class="footer-btns">
+  <button id="btnGuardar" class="btn-success" onclick="guardarUsuario()">Guardar</button>
+  <button class="btn-danger" onclick="cerrarUsuario()">Cancelar</button>
+</div>
+</div>
+</div>
+
+<script>
+const API="https://script.google.com/macros/s/AKfycbzhpjRngwZW2z4d49pUuHtEci23KFxZkETu-SvB5OPPDJpXnqOkc_MchNE-nWYPfAzw/exec";
+let usuarios=[],modo="crear";
+
+async function cargarUsuarios(){
+  btnLoad.classList.add("btn-loading");
+  btnLoad.innerHTML=`<div class="loader"></div>Cargando`;
+  const r=await fetch(API+"?action=listarUsuarios");
+  const d=await r.json();
+  usuarios=d.data||[];
+  render(usuarios);
+  btnLoad.classList.remove("btn-loading");
+  btnLoad.innerHTML="Cargar usuarios";
+}
+
+function render(data){
+  tablaUsuarios.innerHTML="";
+  mobileList.innerHTML="";
+  data.forEach(u=>{
+    tablaUsuarios.innerHTML+=`
+    <tr>
+      <td>${u[1]}</td><td>${u[2]}</td><td>${u[3]}</td>
+      <td>${u[4]}</td><td>${u[5]}</td>
+      <td>
+        <button class="btn-edit" onclick="editar('${u[1]}','${u[2]}','${u[3]}','${u[4]}','${u[5]}','${u[10]||""}')">Editar</button>
+        <button class="btn-danger" onclick="eliminarUsuario('${u[1]}')">Eliminar</button>
+      </td>
+    </tr>`;
+    mobileList.innerHTML+=`
+    <div class="mobile-card">
+      <h4>${u[1]}</h4>
+      <p><b>Contraseña:</b> ${u[2]}</p>
+      <p><b>Nombre:</b> ${u[3]}</p>
+      <p><b>Rol:</b> ${u[4]}</p>
+      <p><b>Activo:</b> ${u[5]}</p>
+      <div class="mobile-actions">
+        <button class="btn-edit" onclick="editar('${u[1]}','${u[2]}','${u[3]}','${u[4]}','${u[5]}','${u[10]||""}')">Editar</button>
+        <button class="btn-danger" onclick="eliminarUsuario('${u[1]}')">Eliminar</button>
+      </div>
+    </div>`;
+  });
+}
+
+function filtrar(){
+  const q=busqueda.value.toLowerCase();
+  render(usuarios.filter(u=>u[1].toLowerCase().includes(q)||u[3].toLowerCase().includes(q)||u[4].toLowerCase().includes(q)));
+}
+
+function abrirCrear(){
+  modo="crear";
+  tituloUsuario.innerText="Crear Usuario";
+  u_user.disabled=false;
+  limpiar();
+  modalUsuario.style.display="flex";
+}
+
+function editar(u,p,n,r,a,per){
+  modo="editar";
+  tituloUsuario.innerText="Editar Usuario";
+  u_user.value=u; u_user.disabled=true;
+  u_pass.value=p; u_nombre.value=n;
+  u_rol.value=r; u_activo.value=a;
+  document.querySelectorAll(".permissions input").forEach(c=>c.checked=per.includes(c.value));
+  modalUsuario.style.display="flex";
+}
+
+function cerrarUsuario(){ modalUsuario.style.display="none"; }
+
+function limpiar(){
+  u_user.value="";u_pass.value="";u_nombre.value="";
+  document.querySelectorAll(".permissions input").forEach(c=>c.checked=false);
+}
+
+async function guardarUsuario(){
+  btnGuardar.classList.add("btn-loading");
+  btnGuardar.innerHTML=`<div class="loader"></div>Guardando`;
+  const permisos=[...document.querySelectorAll(".permissions input:checked")].map(c=>c.value).join(",");
+  await fetch(API,{method:"POST",headers:{"Content-Type":"text/plain"},
+    body:JSON.stringify({action:modo==="crear"?"crearUsuario":"editarUsuario",
+      username:u_user.value,password:u_pass.value,nombre:u_nombre.value,
+      rol:u_rol.value,activo:u_activo.value,permisos})});
+  cerrarUsuario(); cargarUsuarios();
+  btnGuardar.classList.remove("btn-loading"); btnGuardar.innerHTML="Guardar";
+}
+
+async function eliminarUsuario(u){
+  if(!confirm("Eliminar "+u+"?"))return;
+  await fetch(API,{method:"POST",headers:{"Content-Type":"text/plain"},
+    body:JSON.stringify({action:"eliminarUsuario",username:u})});
+  cargarUsuarios();
+}
+</script>
+</body>
+
+</body>
+</html>
